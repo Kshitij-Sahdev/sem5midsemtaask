@@ -1,0 +1,23 @@
+pipeline {
+  agent any
+  parameters {
+    string(name: 'ENV', defaultValue: 'dev', description: 'Environment to deploy')
+  }
+  stages {
+    stage('Build Docker') {
+      steps {
+        sh 'docker build -t nginx-ssl ./docker'
+      }
+    }
+    stage('Terraform Init') {
+      steps {
+        sh 'terraform init -reconfigure'
+      }
+    }
+    stage('Terraform Apply') {
+      steps {
+        sh "terraform apply -var-file=environments/${params.ENV}/terraform.tfvars -auto-approve"
+      }
+    }
+  }
+}

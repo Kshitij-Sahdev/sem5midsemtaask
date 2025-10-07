@@ -1,0 +1,24 @@
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+parameters:
+- name: ENV
+  default: dev
+
+stages:
+- stage: Build
+  jobs:
+  - job: DockerBuild
+    steps:
+    - script: docker build -t nginx-ssl ./docker
+
+- stage: Deploy
+  jobs:
+  - job: Terraform
+    steps:
+    - script: |
+        terraform init -reconfigure
+        terraform apply -var-file=environments/${{ parameters.ENV }}/terraform.tfvars -auto-approve
