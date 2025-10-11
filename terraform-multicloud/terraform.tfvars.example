@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and fill in values
+# DONT COMMIT terraform.tfvars
+
+azure_subscription_id = "00000000-0000-0000-0000-000000000000"
+azure_client_id       = "00000000-0000-0000-0000-000000000000"
+azure_client_secret   = "your-secret"
+azure_tenant_id       = "00000000-0000-0000-0000-000000000000"
+
+azure_location = "eastus"
+environment    = "dev"
+project_name   = "nginx-multicloud"
+vm_size        = "Standard_B1s"
+admin_username = "azureuser"
+ssh_public_key = "ssh-rsa AAAAB3Nza..."
+enable_azure   = true

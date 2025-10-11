@@ -1,23 +1,83 @@
 pipeline {
   agent any
+  
   parameters {
-    string(name: 'ENV', defaultValue: 'dev', description: 'Environment to deploy')
+    choice(name: 'ENV', choices: ['dev', 'prod'], description: 'Environment')
+    booleanParam(name: 'DESTROY', defaultValue: false, description: 'Destroy infrastructure')
   }
+  
+  tools {
+    terraform 'terraform'
+  }
+  
+  environment {
+    ARM_SUBSCRIPTION_ID = credentials('azure-subscription-id')
+    ARM_CLIENT_ID       = credentials('azure-client-id')
+    ARM_CLIENT_SECRET   = credentials('azure-client-secret')
+    ARM_TENANT_ID       = credentials('azure-tenant-id')
+  }
+  
   stages {
-    stage('Build Docker') {
+    stage('Checkout') {
       steps {
-        sh 'docker build -t nginx-ssl ./docker'
+        checkout scm
       }
     }
+    
+    stage('Build Docker') {
+      steps {
+        dir('docker') {
+          sh 'docker build -t nginx-ssl:latest .'
+        }
+      }
+    }
+    
     stage('Terraform Init') {
       steps {
         sh 'terraform init -reconfigure'
       }
     }
+    
+    stage('Terraform Plan') {
+      when { expression { !params.DESTROY } }
+      steps {
+        sh "terraform plan -var-file=environments/${params.ENV}/terraform.tfvars -out=tfplan"
+      }
+    }
+    
+    stage('Approve') {
+      when { expression { !params.DESTROY } }
+      steps {
+        input message: "Deploy to ${params.ENV}?", ok: 'Deploy'
+      }
+    }
+    
     stage('Terraform Apply') {
+      when { expression { !params.DESTROY } }
       steps {
         sh "terraform apply -var-file=environments/${params.ENV}/terraform.tfvars -auto-approve"
       }
+    }
+    
+    stage('Terraform Destroy') {
+      when { expression { params.DESTROY } }
+      steps {
+        input message: "Destroy ${params.ENV}?", ok: 'Yes'
+        sh "terraform destroy -var-file=environments/${params.ENV}/terraform.tfvars -auto-approve"
+      }
+    }
+    
+    stage('Outputs') {
+      when { expression { !params.DESTROY } }
+      steps {
+        sh 'terraform output'
+      }
+    }
+  }
+  
+  post {
+    always {
+      echo "Pipeline complete"
     }
   }
 }

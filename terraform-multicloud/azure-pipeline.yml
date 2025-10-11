@@ -1,24 +1,107 @@
 trigger:
-- main
+  branches:
+    include:
+    - main
+    - dev
+  paths:
+    exclude:
+    - README.md
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'ubuntu-latest'
 
 parameters:
 - name: ENV
-  default: dev
+  displayName: 'Environment'
+  type: string
+  default: 'dev'
+  values:
+  - dev
+  - prod
+- name: DESTROY
+  displayName: 'Destroy infrastructure'
+  type: boolean
+  default: false
+
+variables:
+- group: terraform-azure-creds
+- name: TF_VERSION
+  value: '1.6.0'
 
 stages:
 - stage: Build
   jobs:
-  - job: DockerBuild
+  - job: BuildDocker
     steps:
-    - script: docker build -t nginx-ssl ./docker
+    - checkout: self
+    - task: Docker@2
+      inputs:
+        command: 'build'
+        dockerfile: 'docker/Dockerfile'
+        tags: nginx-ssl:latest
 
 - stage: Deploy
+  dependsOn: Build
+  condition: and(succeeded(), eq(variables['DESTROY'], 'false'))
   jobs:
-  - job: Terraform
-    steps:
-    - script: |
-        terraform init -reconfigure
-        terraform apply -var-file=environments/${{ parameters.ENV }}/terraform.tfvars -auto-approve
+  - deployment: DeployTerraform
+    environment: '${{ parameters.ENV }}'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: $(TF_VERSION)
+          - script: terraform init -reconfigure
+            env:
+              ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+              ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+              ARM_TENANT_ID: $(AZURE_TENANT_ID)
+          - script: terraform plan -var-file=environments/${{ parameters.ENV }}/terraform.tfvars -out=tfplan
+            env:
+              ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+              ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+              ARM_TENANT_ID: $(AZURE_TENANT_ID)
+          - script: terraform apply -auto-approve tfplan
+            env:
+              ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+              ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+              ARM_TENANT_ID: $(AZURE_TENANT_ID)
+          - script: terraform output
+            env:
+              ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+              ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+              ARM_TENANT_ID: $(AZURE_TENANT_ID)
+
+- stage: Destroy
+  dependsOn: []
+  condition: eq(variables['DESTROY'], 'true')
+  jobs:
+  - deployment: DestroyTerraform
+    environment: '${{ parameters.ENV }}-destroy'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+          - task: TerraformInstaller@0
+            inputs:
+              terraformVersion: $(TF_VERSION)
+          - script: terraform init -reconfigure
+            env:
+              ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+              ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+              ARM_TENANT_ID: $(AZURE_TENANT_ID)
+          - script: terraform destroy -var-file=environments/${{ parameters.ENV }}/terraform.tfvars -auto-approve
+            env:
+              ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+              ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+              ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+              ARM_TENANT_ID: $(AZURE_TENANT_ID)
