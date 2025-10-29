@@ -1,23 +1,34 @@
-﻿resource "azurerm_public_ip" "appgw" {
+locals {
+  tags = merge({
+    Environment = var.environment
+    Project     = var.project_name
+    Component   = "app-gateway"
+  }, var.tags)
+
+  certificate_path = var.ssl_certificate_path != "" ? var.ssl_certificate_path : "${path.module}/self-signed-cert.pfx"
+  certificate_data = trimspace(var.ssl_certificate_base64) != "" ? var.ssl_certificate_base64 : filebase64(local.certificate_path)
+}
+
+resource "azurerm_public_ip" "appgw" {
   count               = var.enable_azure ? 1 : 0
-  name                = "${var.environment}-appgw-pip"
+  name                = format("%s-%s-appgw-pip", var.project_name, var.environment)
   location            = var.location
   resource_group_name = var.resource_group_name
   allocation_method   = "Static"
   sku                 = "Standard"
-  tags                = { Environment = var.environment }
+  tags                = local.tags
 }
 
 resource "azurerm_application_gateway" "main" {
   count               = var.enable_azure ? 1 : 0
-  name                = "${var.environment}-appgw"
+  name                = format("%s-%s-appgw", var.project_name, var.environment)
   location            = var.location
   resource_group_name = var.resource_group_name
 
   sku {
-    name     = "Standard_v2"
-    tier     = "Standard_v2"
-    capacity = 1
+    name     = var.sku.name
+    tier     = var.sku.tier
+    capacity = var.sku.capacity
   }
 
   gateway_ip_configuration {
@@ -27,12 +38,12 @@ resource "azurerm_application_gateway" "main" {
 
   frontend_port {
     name = "http-port"
-    port = 80
+    port = var.ports.http
   }
 
   frontend_port {
     name = "https-port"
-    port = 443
+    port = var.ports.https
   }
 
   frontend_ip_configuration {
@@ -46,25 +57,25 @@ resource "azurerm_application_gateway" "main" {
   }
 
   backend_http_settings {
-    name                  = "https-backend-settings"
-    cookie_based_affinity = "Disabled"
-    port                  = 443
-    protocol              = "Https"
-    request_timeout       = 60
+    name                                = "https-backend-settings"
+    cookie_based_affinity               = "Disabled"
+    port                                = var.ports.backend_https
+    protocol                            = "Https"
+    request_timeout                     = 60
     pick_host_name_from_backend_address = false
-    host_name             = "localhost"
-    probe_name            = "https-probe"
+    host_name                           = var.backend_host
+    probe_name                          = "https-probe"
   }
 
   probe {
-    name                = "https-probe"
-    protocol            = "Https"
-    path                = "/health"
-    interval            = 30
-    timeout             = 30
-    unhealthy_threshold = 3
+    name                                      = "https-probe"
+    protocol                                  = "Https"
+    path                                      = var.probe.path
+    interval                                  = var.probe.interval
+    timeout                                   = var.probe.timeout
+    unhealthy_threshold                       = var.probe.unhealthy_threshold
     pick_host_name_from_backend_http_settings = false
-    host                = "127.0.0.1"
+    host                                      = var.probe.host
     match {
       status_code = ["200-399"]
     }
@@ -87,8 +98,8 @@ resource "azurerm_application_gateway" "main" {
 
   ssl_certificate {
     name     = "appgw-ssl-cert"
-    data     = filebase64("${path.module}/self-signed-cert.pfx")
-    password = "Password123"
+    data     = local.certificate_data
+    password = var.ssl_certificate_password
   }
 
   redirect_configuration {
@@ -116,5 +127,5 @@ resource "azurerm_application_gateway" "main" {
     priority                   = 101
   }
 
-  tags = { Environment = var.environment }
+  tags = local.tags
 }

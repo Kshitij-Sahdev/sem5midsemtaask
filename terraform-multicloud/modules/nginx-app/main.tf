@@ -1,3 +1,4 @@
 locals {
-  app_name = "nginx-ssl-app"
+  app_name = var.application_name
+  display  = var.enable_application
 }

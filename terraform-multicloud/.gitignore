@@ -8,7 +8,7 @@
 
 # terraform variable files with actual credentials
 # keep the example files, ignore the real ones
-terraform.tfvars
+terraform.tfvars # important - file commit na ho jaye, i mean kuch dala bhi ni h abhi so....
 *.auto.tfvars
 *.tfvars.json
 

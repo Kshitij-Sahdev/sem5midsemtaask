@@ -1,15 +1,76 @@
 # Copy to terraform.tfvars and fill in values
 # DONT COMMIT terraform.tfvars
 
+# Toggle stacks
+enable_azure         = false # set to true for real Azure deployments
+enable_networking    = true
+enable_compute       = true
+enable_loadbalancer  = true
+enable_application   = true
+
+# Azure authentication (required when enable_azure = true)
 azure_subscription_id = "00000000-0000-0000-0000-000000000000"
 azure_client_id       = "00000000-0000-0000-0000-000000000000"
 azure_client_secret   = "your-secret"
 azure_tenant_id       = "00000000-0000-0000-0000-000000000000"
+azure_environment     = "public"
 
-azure_location = "eastus"
-environment    = "dev"
-project_name   = "nginx-multicloud"
+# Naming & tagging
+environment          = "dev"
+project_name         = "nginx-multicloud"
+resource_group_name  = ""            # optional override
+tags = {
+	owner      = "your-name"
+	costCenter = "sandbox"
+}
+
+# Networking
+azure_location          = "eastus"
+vnet_address_space      = ["10.0.0.0/16"]
+public_subnet_prefixes  = ["10.0.1.0/24"]
+private_subnet_prefixes = ["10.0.2.0/24"]
+nat_gateway_enabled     = true
+allowed_inbound_ports   = [22, 80, 443]
+
+# Compute
+vm_count       = 1
 vm_size        = "Standard_B1s"
 admin_username = "azureuser"
 ssh_public_key = "ssh-rsa AAAAB3Nza..."
-enable_azure   = true
+vm_image = {
+	publisher = "Canonical"
+	offer     = "0001-com-ubuntu-server-focal"
+	sku       = "20_04-lts-gen2"
+	version   = "latest"
+}
+vm_os_disk = {
+	storage_account_type = "Standard_LRS"
+	caching              = "ReadWrite"
+}
+vm_custom_data = "" # optional override, leave empty to use default nginx bootstrap
+
+# Load balancer / Application Gateway
+app_gateway_sku = {
+	name     = "Standard_v2"
+	tier     = "Standard_v2"
+	capacity = 1
+}
+app_gateway_ports = {
+	http          = 80
+	https         = 443
+	backend_https = 443
+}
+app_gateway_probe = {
+	path                = "/health"
+	interval            = 30
+	timeout             = 30
+	unhealthy_threshold = 3
+	host                = "127.0.0.1"
+}
+app_gateway_backend_host           = "localhost"
+app_gateway_ssl_certificate_path   = "" # set if you have a custom PFX file
+app_gateway_ssl_certificate_base64 = "" # alternative to the path above
+app_gateway_ssl_certificate_password = "Password123"
+
+# Application layer metadata
+application_name = "nginx-ssl-app"
