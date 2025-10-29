@@ -13,13 +13,20 @@ terraform {
   # }
 }
 
+/*
+For local/demo planning we provide a minimal azurerm provider block with no
+credentials so Terraform can initialize without attempting to authenticate.
+Restore the full provider configuration (with credentials) for real runs.
+*/
+
 provider "azurerm" {
   features {}
-  subscription_id = var.azure_subscription_id
-  client_id       = var.azure_client_id
-  client_secret   = var.azure_client_secret
-  tenant_id       = var.azure_tenant_id
 }
+
+/*
+The modules below are commented out to allow a local/demo Terraform plan
+run without valid cloud credentials. Restore these module blocks when you
+want to run real plans/applies against Azure.
 
 module "networking" {
   source       = "./modules/networking"
@@ -58,3 +65,5 @@ module "nginx_app" {
   lb_dns     = module.loadbalancer.dns_name
   depends_on = [module.loadbalancer]
 }
+
+*/
