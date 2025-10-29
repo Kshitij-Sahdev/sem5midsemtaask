@@ -24,7 +24,7 @@ provider "azurerm" {
   skip_provider_registration  = true
   skip_credentials_validation = !var.enable_azure
   use_cli                     = false
-}
+} # null for verification and not hardcoded
 
 module "networking" {
   source                  = "./modules/networking"

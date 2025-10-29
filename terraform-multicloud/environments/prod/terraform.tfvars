@@ -6,11 +6,13 @@ enable_compute      = true
 enable_loadbalancer = true
 enable_application  = true
 
-azure_subscription_id = "your-prod-subscription-id"
-azure_client_id       = "your-prod-client-id"
-azure_client_secret   = "your-prod-client-secret"
-azure_tenant_id       = "your-prod-tenant-id"
+azure_subscription_id = "fake-prod-subscription-id"
+azure_client_id       = "fake-prod-client-id"
+azure_client_secret   = "fake-prod-client-secret"
+azure_tenant_id       = "fake-prod-tenant-id"
 azure_environment     = "public"
+
+# production id authentication comes very soon
 
 environment         = "prod"
 project_name        = "nginx-prod"
